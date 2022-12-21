@@ -1,35 +1,89 @@
 const fs = require('fs');
-const { jObj, jStr, isObj, runShellCmd } = require('./utils');
-
-const PARA_BIN =  process.env.PARA_BIN_PATH;
-const RELAY_BIN = process.env.PARA_BIN_PATH;
-const PARA_SPEC_PATH = process.env.PARA_SPEC_PATH;
-const RELAY_SPEC_PATH = process.env.RELAY_SPEC_PATH;
-
-const CMD = {
-    GEN_ACC: `${RELAY_BIN} key generate --network substrate`,
-}
+const util = require('util');
+const { exec } = require('child_process');
+const { CMD, PATH } = require('./constants');
+const { 
+    log,
+    jObj,
+    jStr,
+    isObj,
+    format,
+    parse_op,
+    runShellCmd,
+    get_para_id,
+    make_cmd_gen,
+    get_para_raw_spec,
+} = require('./utils');
 
 const FILE_PATH = { 
     PHRASES_CONTR: './para_phrases_contr.txt',
     PHRASES_STASH: './para_phrases_stash.txt',
-    PARA_SPEC_MOD: './specs/para_spec-modified.json',
 }
 
-async function run() {
-    console.log('running');
-    const para = jObj(fs.readFileSync(PARA_SPEC_PATH));
+let PARA_BIN = '';
+let RELAY_BIN = '';
+let PARA_PLAIN_SPEC_PATH = '';
 
+let para = null;
+
+async function run_para_spec_code(n) {
+    PARA_BIN =  process.env.PARA_BIN_PATH;
+    RELAY_BIN = process.env.RELAY_BIN_PATH;
+    PARA_PLAIN_SPEC_PATH = process.env.PARA_PLAIN_SPEC_PATH;
+    
+    await generate_para_plain_spec();
+    para = jObj(fs.readFileSync(PARA_PLAIN_SPEC_PATH));
+    await process_spec();
+    await generate_para_raw_specs(n);
+}
+
+async function generate_para_plain_spec() {
+    let cmd = make_cmd_gen([
+        CMD.PARA_PLAIN_SPEC,
+        PARA_BIN,
+        PATH.PLAIN_SPEC_PARA,
+    ])
+    // generate para plain spec
+    return new Promise((r, j) => exec(cmd, (e, s, ee) => {r()}));
+}
+
+async function generate_para_raw_specs(n) {
+    // let p = [];
+    for (let i=0, cmd='', para_id=0; i<n; ++i) {
+        para_id = +get_para_id(i);
+        upsert_para_id(para_id);
+        cmd = make_cmd_gen([
+            CMD.RAW_SPEC,
+            PARA_BIN,
+            PATH.PLAIN_SPEC_PARA,
+            get_para_raw_spec(i),
+        ]);
+        await (new Promise((r, j) => exec(cmd, (e, s, ee) => {r()})));
+    }
+    // return Promise.all(p);
+}
+
+function upsert_para_id(para_id) {
+    // log.i('para_id', para_id);
+    para.para_id = para_id;
+    para.genesis.runtime.parachainInfo.parachainId = para_id;
+    write_mutated_spec(para, PATH.PLAIN_SPEC_PARA);
+}
+
+async function process_spec() {
     if(isObj(para)) {
-        resetFiles()
-        console.log('getting stash accounts');
+        reset_files()
+        log.i('getting stash accounts');
+
         const bals = para.genesis.runtime.balances.balances;
         const numOfAccs = bals.length;
         const bal = bals[0][1];
-        const accsStash = await getStashAccounts(numOfAccs/2);
-        const accsController = await getControllerAccounts(numOfAccs/2);
+        const accsStash = await get_stash_accounts(numOfAccs/2);
+        log.i('accsStash', accsStash);
+        const accsController = await get_controller_accounts(numOfAccs/2);
+        log.i('accsController', accsController);
         bals.length = 0;
-        console.log(numOfAccs);
+        log.i(numOfAccs);
         // insert controller accounts
         for(let i=0; i<numOfAccs/2; ++i) {
             bals.push([accsController[i], bal]);
@@ -67,51 +121,47 @@ async function run() {
         }
 
 
-        writeMutatedSpec(para, FILE_PATH.PARA_SPEC_MOD);
+        write_mutated_spec(para, PATH.PLAIN_SPEC_PARA);
     }
 }
 
-async function getStashAccounts(howMany) {
-    let accs = []
-    console.log('how many:', howMany);
+async function get_stash_accounts(howMany) {
+    let accs = [];
+    log.i('how many:', howMany);
     for(
-        let i=0, d={}; 
+        let i=0, d={};
         i<howMany; 
         storeToFile(d.phrase, FILE_PATH.PHRASES_STASH), accs.push(d.addr), ++i
-    ) d = parse(await runShellCmd(CMD.GEN_ACC))
+    ) d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`))
     return accs;
 }
 
-async function getControllerAccounts(howMany) {
+async function get_controller_accounts(howMany) {
     let accs = []
-    console.log('how many:', howMany);
+    log.i('how many:', howMany);
     for(
         let i=0, d={}; 
         i<howMany; 
         storeToFile(d.phrase, FILE_PATH.PHRASES_CONTR), accs.push(d.addr), ++i
-    ) d = parse(await runShellCmd(CMD.GEN_ACC))
+    ) d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`))
     return accs;
-}
-
-function parse(op) {
-    const phrase = op.match(/Secret phrase `(.*)`/)[1].trim();
-    const addr = op.match(/SS58 Address: (.*)/)[1].trim();
-
-    console.log(phrase, addr);
-    return {phrase, addr};
 }
 
 function storeToFile(data, path) {
     fs.appendFileSync(path, `${data.trim()}\n`);
 }
 
-function resetFiles() {
+function reset_files() {
     fs.writeFileSync(FILE_PATH.PHRASES_CONTR, '')
     fs.writeFileSync(FILE_PATH.PHRASES_STASH, '');
 }
 
-function writeMutatedSpec(data, path) {
-    fs.writeFileSync(path, jStr(data, null, 2));
+function write_mutated_spec(data, path) {
+    fs.writeFileSync(
+        path, 
+        jStr(data, null, 2), 
+        { flag: 'w' }
+    );
 }
 
-run().then().catch(console.error)
+module.exports = run_para_spec_code;

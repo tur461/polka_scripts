@@ -21,13 +21,23 @@ const PORT = {
 }
 
 const PATH = {
+  NONE: '',
+  HELL: ' > dev/null',
   BASE_PARA: './tmp/para/node%s',
   BASE_RELAY: './tmp/relay/node%s',
   RAW_SPEC_RELAY: './specs/relay-raw_spec.json',
   RAW_SPEC_PARA: './specs/para-%s-raw_spec.json',
+  PLAIN_SPEC_PARA: './specs/para-plain_spec.json',
+  PLAIN_SPEC_RELAY: './specs/relay-plain_spec.json',
 }
 
 const CMD = {
+  GEN_ACC: ' key generate --network substrate',
+  INSP_BEEF: 'key inspect --network substrate --scheme ecdsa',
+  INSP_GRAN: 'key inspect --network substrate --scheme sr25519',
+  PARA_PLAIN_SPEC: '%s build-spec --disable-default-bootnode > %s',
+  RAW_SPEC: '%s build-spec --chain %s --disable-default-bootnode --raw > %s',
+  RELAY_PLAIN_SPEC: '%s build-spec --chain rococo-local --disable-default-bootnode > %s',
   RELAY: '%s --name %s --validator --base-path %s --chain %s --ws-port %s --rpc-port %s --port %s --node-key %s --unsafe-ws-external',
   PARA: '%s --name --collator --force-authoring --chain %s --base-path %s --port %s --ws-port %s --unsafe-ws-external -- --execution wasm --chain %s --port %s --ws-port %s',
 }

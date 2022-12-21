@@ -12,6 +12,17 @@ const isObj = v => typeof v === 'object';
 const isStr = v => typeof v === 'string';
 const isNum = v => typeof v === 'number';
 
+const format = function() { return util.format(...arguments) }
+
+
+const log = (_ => {
+  return {
+    i: function() { console.log(...arguments) },
+    e: function() { console.error(...arguments) },
+    t: function() { console.trace(...arguments) },
+  }
+})();
+
 const get_node_key = (ctr, target) => {
   const para = '000000000000000000000000000000000000000000000000%s00000000';
   const relay = '00000000000000000000000000000000000000000000000000000000%s';
@@ -26,38 +37,48 @@ const get_name = ctr => util.format(NAME, ctr);
 
 const get_port = (ctr, what) => what + ctr - 1; 
 
-const get_relay_spec = ctr => PATH.RAW_SPEC_RELAY;
+const get_relay_raw_spec = _ => PATH.RAW_SPEC_RELAY;
+
+const get_para_plain_spec = _ => PATH.PLAIN_SPEC_PARA;
+
+const get_relay_plain_spec = _ => PATH.PLAIN_SPEC_RELAY;
 
 const get_para_id = ctr => util.format(PARA_ID, ctr);
 
 const get_base_path = (ctr, what) => util.format(what, ctr);
 
-const get_para_spec = ctr => util.format(PATH.RAW_SPEC_PARA, get_para_id(ctr));
+const get_para_raw_spec = ctr => util.format(PATH.RAW_SPEC_PARA, get_para_id(ctr));
 
 const make_cmd = (params, log_file) => `sh -c '${util.format(...params)} > ${log_file} 2>&1 &'`;
 
+const make_cmd_gen = (params) => `sh -c '${util.format(...params)}'`;
+
 const runShellCmd = cmd => {
     return new Promise((r, j) => {
-        exec(cmd, (err, stdout, stderr) => {
+        exec(`sh -c '${cmd}'`, (err, stdout, stderr) => {
             const res = {
                 op: null,
                 er: null,
             }
-            if (err) res.er = error.message;
+            if (err) res.er = err.message;
             else if (stderr) res.er = stderr;
             else res.op = stdout;
             if(res.op) r(res.op)
             else j(res.er)
         });
     })
-} 
+}
 
-const log = _ => {
-  return {
-    i: function() { console.log(...arguments) },
-    e: function() { console.error(...arguments) },
-    t: function() { console.trace(...arguments) },
-  }
+
+const parse_op = op => {
+  // log.i('op:', op);
+  let tmp = op.indexOf('Secret phrase:') + 'Secret phrase:'.length;
+  const phrase = op.substring(tmp, op.indexOf('Network ID:')).trim();
+  tmp = op.indexOf('SS58 Address:') + 'SS58 Address:'.length;
+  const addr = op.substring(tmp).trim();
+
+  // log.i(phrase, addr);
+  return {phrase, addr};
 }
 
 module.exports = {
@@ -67,13 +88,18 @@ module.exports = {
     isObj,
     isStr,
     isNum,
+    format,
+    parse_op,
     get_port,
     get_name,
     make_cmd,
     runShellCmd,
     get_para_id,
+    make_cmd_gen,
     get_node_key,
-    get_para_spec,
     get_base_path,
-    get_relay_spec,
+    get_para_raw_spec,
+    get_relay_raw_spec,
+    get_para_plain_spec,
+    get_relay_plain_spec,
 }

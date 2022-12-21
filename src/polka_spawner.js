@@ -14,16 +14,18 @@ const {
   make_cmd,
   get_node_key,
   get_base_path,
-  get_relay_spec, 
+  get_relay_raw_spec,
 } = require('./utils');
+
+const process_all_specs = require('./process_specs');
 
 dotenv.config({ path: 'scripts/.env'});
 
 const LOG_DIR = process.env.LOG_DIR;
 
-main()
+main().then();
 
-function main() {
+async function main() {
   const numOfNodes_para = process.env.NUM_OF_PARA_NODES;
   console.log(numOfNodes_para, 'numOfNodes_para')
   if(!numOfNodes_para) throw new Error('provide num of para nodes in env file ');
@@ -31,9 +33,14 @@ function main() {
   const numOfNodes_relay = +process.env.NUM_OF_RELAY_NODES;
   if(!numOfNodes_relay) throw new Error('provide num of para nodes in env file');
   
-  
+  // generate keys and process specs
 
-  run_relay_nodes(numOfNodes_relay);
+  await process_all_specs({
+    numOfNodes_para, 
+    numOfNodes_relay
+  });
+
+  // run_relay_nodes(numOfNodes_relay);
 }
 
 function run_relay_nodes(n) {
@@ -46,7 +53,7 @@ function run_relay_nodes(n) {
       bin,
       get_name(ctr),
       get_base_path(ctr, PATH.BASE_RELAY),
-      get_relay_spec(),
+      get_relay_raw_spec(),
       get_port(ctr, PORT.RELAY.WS),
       get_port(ctr, PORT.RELAY.RPC),
       get_port(ctr, PORT.RELAY.HTTP),

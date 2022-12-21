@@ -1,28 +1,61 @@
+const { exec } = require('child_process');
 const fs = require('fs');
-const { jObj, jStr, isObj, runShellCmd } = require('./utils');
+const { CMD, PATH } = require('./constants');
+const { 
+    log, 
+    jObj,
+    jStr,
+    isObj,
+    runShellCmd,
+    parse_op,
+    make_cmd_gen,
+    format,
+} = require('./utils');
 
-const RELAY_BIN = process.env.RELAY_BIN_PATH;
-
-const CMD = {
-    GEN_ACC: `${RELAY_BIN} key generate --network substrate`,
-    INSP_BEEF: `${RELAY_BIN} key inspect --network substrate --scheme ecdsa`,
-    INSP_GRAN: `${RELAY_BIN} key inspect --network substrate --scheme sr25519`,
-}
+let para = null;
+let RELAY_BIN = '';
+let RELAY_PLAIN_SPEC_PATH = '';
 
 const FILE_PATH = { 
     PHRASES_CONTR: './relay_phrases_contr.txt',
     PHRASES_STASH: './relay_phrases_stash.txt',
-    RELAY_SPEC_MOD: './specs/relay_spec-modified.json',
-    RELAY_SPEC_PATH: './specs/relay-plain_spec.json',
 }
 
-async function main() {
-    console.log('running');
-    const para = jObj(fs.readFileSync(FILE_PATH.RELAY_SPEC_PATH));
+async function run_relay_spec_code() {
+    RELAY_BIN = process.env.RELAY_BIN_PATH;
+    RELAY_PLAIN_SPEC_PATH = process.env.RELAY_PLAIN_SPEC_PATH;
 
+    await generate_relay_plain_spec();
+    para = jObj(fs.readFileSync(RELAY_PLAIN_SPEC_PATH));
+    await process_spec();
+    await generate_relay_raw_spec();
+}
+
+function generate_relay_plain_spec() {
+    let cmd = make_cmd_gen([
+        CMD.RELAY_PLAIN_SPEC,
+        RELAY_BIN,
+        PATH.PLAIN_SPEC_RELAY,
+    ])
+    // generate relay plain spec
+    return new Promise((r, j) => exec(cmd, (e, s, ee) => {r()}));
+}
+
+function generate_relay_raw_spec() {
+    let cmd = make_cmd_gen([
+        CMD.RAW_SPEC,
+        RELAY_BIN,
+        PATH.PLAIN_SPEC_RELAY,
+        PATH.RAW_SPEC_RELAY,
+    ])
+    // generate relay plain spec
+    return new Promise((r, j) => exec(cmd, (e, s, ee) => {r()}));
+}
+
+async function process_spec() {
     if(isObj(para)) {
         resetFiles()
-        console.log('getting stash accounts');
+        log.i('getting stash accounts');
         const config = para.genesis.runtime.runtime_genesis_config;
         const bals = config.balances.balances;
         const numOfAccs = bals.length;
@@ -70,21 +103,21 @@ async function main() {
         // sudo -> key
 
         config.sudo.key = accsController[0];
-        config.bridgeRococoGrandpa.owner = accsController[0];
-        config.bridgeWococoGrandpa.owner = accsController[0];
-        config.bridgeRococoMessages.owner = accsController[0];
-        config.bridgeWococoMessages.owner = accsController[0];
+        // config.bridgeRococoGrandpa.owner = accsController[0];
+        // config.bridgeWococoGrandpa.owner = accsController[0];
+        // config.bridgeRococoMessages.owner = accsController[0];
+        // config.bridgeWococoMessages.owner = accsController[0];
 
 
-        writeMutatedSpec(para, FILE_PATH.RELAY_SPEC_MOD);
+        writeMutatedSpec(para, RELAY_PLAIN_SPEC_PATH);
     }
 }
 
 async function getStashAccounts(howMany) {
     let accs = [], phrases = []
-    console.log('how many:', howMany);
+    log.i('how many:', howMany);
     for(let i=0, d={}; i<howMany; ++i) {
-        d = parse(await runShellCmd(CMD.GEN_ACC));
+        d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`));
         accs.push(d.addr);
         phrases.push(d.phrase);
         storeToFile(d.phrase, FILE_PATH.PHRASES_STASH);
@@ -94,9 +127,9 @@ async function getStashAccounts(howMany) {
 
 async function getControllerAccounts(howMany) {
     let accs = [], phrases = [];
-    console.log('how many:', howMany);
+    log.i('how many:', howMany);
     for(let i=0, d={}; i<howMany; ++i) {
-        d = parse(await runShellCmd(CMD.GEN_ACC));
+        d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`));
         accs.push(d.addr);
         phrases.push(d.phrase);
         storeToFile(d.phrase, FILE_PATH.PHRASES_CONTR);
@@ -104,29 +137,24 @@ async function getControllerAccounts(howMany) {
     return {accs, phrases};
 }
 
-function parse(op) {
-    const phrase = op.match(/Secret phrase `(.*)`/)[1].trim();
-    const addr = op.match(/SS58 Address: (.*)/)[1].trim();
-
-    console.log(phrase, addr);
-    return {phrase, addr};
-}
-
 function parseBeefy(op) {
-    const c = op.match(/Public key \(SS58\): (.*)\n/)[1].trim();
+    let tmp = op.indexOf('Public key (SS58):') + 'Public key (SS58):'.length;
+    const c = op.substring(tmp, op.indexOf('SS58 Address:')).trim();
     return c;
 }
 
 function parseGrandpa(op) {
-    return op.match(/SS58 Address: (.*)/)[1].trim();
+    let tmp = op.indexOf('SS58 Address:') + 'SS58 Address:'.length;
+    const c = op.substring(tmp).trim();
+    return c;
 }
 
 async function getBeefy(ctrPhrase) {
-    return parseBeefy(await runShellCmd(`${CMD.INSP_BEEF} "${ctrPhrase}"`));
+    return parseBeefy(await runShellCmd(`${RELAY_BIN} ${CMD.INSP_BEEF} "${ctrPhrase}"`));
 }
 
 async function getGrandpa(stashPhrase) {
-    return parseGrandpa(await runShellCmd(`${CMD.INSP_GRAN} "${stashPhrase}"`));
+    return parseGrandpa(await runShellCmd(`${RELAY_BIN} ${CMD.INSP_GRAN} "${stashPhrase}"`));
 }
 
 function storeToFile(data, path) {
@@ -142,4 +170,4 @@ function writeMutatedSpec(data, path) {
     fs.writeFileSync(path, jStr(data, null, 2));
 }
 
-main().then().catch(console.error)
+module.exports = run_relay_spec_code;
