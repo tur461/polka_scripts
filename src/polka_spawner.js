@@ -69,3 +69,30 @@ function run_relay_nodes(n) {
     })
   }
 }
+
+function run_para_nodes(n) {
+  const bin = process.env.PARA_BIN_PATH;
+  console.log(util.format('running %s para nodes..', n))
+  for(ctr=get_ctr(0), params=[]; n--;) {
+    ctr = get_ctr();
+    params = [
+      CMD.RELAY,
+      bin,
+      get_name(ctr),
+      get_base_path(ctr, PATH.BASE_RELAY),
+      get_relay_raw_spec(),
+      get_port(ctr, PORT.RELAY.WS),
+      get_port(ctr, PORT.RELAY.RPC),
+      get_port(ctr, PORT.RELAY.HTTP),
+      get_node_key(ctr, 'r'),
+    ]
+    
+    const log_file = `${LOG_DIR}relay_${ctr}.log`;
+    const cmd = make_cmd(params, log_file);
+    console.log(cmd);
+    exec(cmd, (e, s, ee) => {
+      if (!e || !ee) console.log(util.format('node %s running.. [check log ./log/relay_%s.log]', ctr, ctr));
+      else console.log('error running node ' + ctr);
+    })
+  }
+}
