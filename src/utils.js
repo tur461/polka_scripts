@@ -33,9 +33,8 @@ const get_node_key = (ctr, target) => {
 };
 
 
-const get_name = ctr => util.format(NAME, ctr);
 
-const get_port = (ctr, what) => what + ctr - 1; 
+const get_port = (ctr, what) => what + ctr; 
 
 const get_relay_raw_spec = _ => PATH.RAW_SPEC_RELAY;
 
@@ -44,6 +43,10 @@ const get_para_plain_spec = _ => PATH.PLAIN_SPEC_PARA;
 const get_relay_plain_spec = _ => PATH.PLAIN_SPEC_RELAY;
 
 const get_para_id = ctr => util.format(PARA_ID, ctr);
+
+const get_name_para = ctr => util.format(NAME.PARA, ctr);
+
+const get_name_relay = ctr => util.format(NAME.RELAY, ctr);
 
 const get_base_path = (ctr, what) => util.format(what, ctr);
 
@@ -91,13 +94,14 @@ module.exports = {
     format,
     parse_op,
     get_port,
-    get_name,
     make_cmd,
     runShellCmd,
     get_para_id,
     make_cmd_gen,
     get_node_key,
     get_base_path,
+    get_name_para,
+    get_name_relay,
     get_para_raw_spec,
     get_relay_raw_spec,
     get_para_plain_spec,

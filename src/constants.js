@@ -1,4 +1,7 @@
-const NAME = 'node%s';
+const NAME = {
+  PARA: 'para_node_%s',
+  RELAY: 'relay_node_%s',
+}
 
 const PARA_ID = '200%s';
 
@@ -31,6 +34,23 @@ const PATH = {
   PLAIN_SPEC_RELAY: './specs/relay-plain_spec.json',
 }
 
+const SCHEME = {
+  ED: 'ed25519',
+  SR: 'sr25519',
+  ECDSA: 'ecdsa',
+}
+
+const KEY_TYPE = {
+  AUR: 'aura',
+  GRN: 'gran',
+  BAB: 'babe',
+  IMN: 'imon',
+  PRA: 'para',
+  ASN: 'asgn',
+  AUD: 'audi',
+  BFY: 'beef',
+}
+
 const CMD = {
   GEN_ACC: ' key generate --network substrate',
   INSP_BEEF: 'key inspect --network substrate --scheme ecdsa',
@@ -38,8 +58,9 @@ const CMD = {
   PARA_PLAIN_SPEC: '%s build-spec --disable-default-bootnode > %s',
   RAW_SPEC: '%s build-spec --chain %s --disable-default-bootnode --raw > %s',
   RELAY_PLAIN_SPEC: '%s build-spec --chain rococo-local --disable-default-bootnode > %s',
+  INS_KEY: '%s key insert --base-path %s --chain %s --scheme %s --suri "%s" --key-type %s',
   RELAY: '%s --name %s --validator --base-path %s --chain %s --ws-port %s --rpc-port %s --port %s --node-key %s --unsafe-ws-external',
-  PARA: '%s --name --collator --force-authoring --chain %s --base-path %s --port %s --ws-port %s --unsafe-ws-external -- --execution wasm --chain %s --port %s --ws-port %s',
+  PARA: '%s --name %s --collator --force-authoring --base-path %s --chain %s --ws-port %s --rpc-port %s --port %s --node-key %s --unsafe-ws-external -- --execution wasm --chain %s --ws-port %s --port %s',
 }
 
 module.exports = {
@@ -47,6 +68,8 @@ module.exports = {
   NAME,
   PORT,
   PATH,
+  SCHEME,
   PARA_ID,
+  KEY_TYPE
 }
 
