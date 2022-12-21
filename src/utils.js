@@ -1,6 +1,16 @@
 const util = require('util');
+const { exec } = require("child_process");
 const { get_ctr } = require('./closures.js');
 const { PORT, NAME, CMD, PARA_ID, PATH } = require('./constants.js')
+
+
+const jObj = v => JSON.parse(v);
+const jStr = (v, ...p) => JSON.stringify(v, ...p);
+
+
+const isObj = v => typeof v === 'object';
+const isStr = v => typeof v === 'string';
+const isNum = v => typeof v === 'number';
 
 const get_node_key = (ctr, target) => {
   const para = '000000000000000000000000000000000000000000000000%s00000000';
@@ -26,14 +36,44 @@ const get_para_spec = ctr => util.format(PATH.RAW_SPEC_PARA, get_para_id(ctr));
 
 const make_cmd = (params, log_file) => `sh -c '${util.format(...params)} > ${log_file} 2>&1 &'`;
 
-module.exports = {
-  get_port,
-  get_name,
-  make_cmd,
-  get_para_id,
-  get_node_key,
-  get_para_spec,
-  get_base_path,
-  get_relay_spec,
+const runShellCmd = cmd => {
+    return new Promise((r, j) => {
+        exec(cmd, (err, stdout, stderr) => {
+            const res = {
+                op: null,
+                er: null,
+            }
+            if (err) res.er = error.message;
+            else if (stderr) res.er = stderr;
+            else res.op = stdout;
+            if(res.op) r(res.op)
+            else j(res.er)
+        });
+    })
+} 
+
+const log = _ => {
+  return {
+    i: function() { console.log(...arguments) },
+    e: function() { console.error(...arguments) },
+    t: function() { console.trace(...arguments) },
+  }
 }
 
+module.exports = {
+    log,
+    jObj,
+    jStr,
+    isObj,
+    isStr,
+    isNum,
+    get_port,
+    get_name,
+    make_cmd,
+    runShellCmd,
+    get_para_id,
+    get_node_key,
+    get_para_spec,
+    get_base_path,
+    get_relay_spec,
+}

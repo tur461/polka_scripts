@@ -2,12 +2,12 @@
 const util = require('util');
 const dotenv =  require('dotenv');
 const { exec }  = require('child_process')
-const { get_ctr } = require('./closures.js');
+const { get_ctr } = require('./closures');
 const { 
   CMD, 
   PATH, 
   PORT 
-} = require('./constants.js');
+} = require('./constants');
 const { 
   get_port,
   get_name,
@@ -15,7 +15,7 @@ const {
   get_node_key,
   get_base_path,
   get_relay_spec, 
-} = require('./utils.js');
+} = require('./utils');
 
 dotenv.config({ path: 'scripts/.env'});
 
@@ -31,6 +31,8 @@ function main() {
   const numOfNodes_relay = +process.env.NUM_OF_RELAY_NODES;
   if(!numOfNodes_relay) throw new Error('provide num of para nodes in env file');
   
+  
+
   run_relay_nodes(numOfNodes_relay);
 }
 
