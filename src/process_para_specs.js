@@ -70,13 +70,14 @@ function upsert_para_id(para_id) {
     write_mutated_spec(para, PATH.PLAIN_SPEC_PARA);
 }
 
-async function process_spec() {
+async function process_spec(n) {
     if(isObj(para)) {
         reset_files()
         log.i('getting stash accounts');
 
         const bals = para.genesis.runtime.balances.balances;
-        const numOfAccs = bals.length;
+        let numOfAccs = bals.length/2;
+        numOfAccs = numOfAccs / 2;
         const bal = bals[0][1];
         const accsStash = await get_stash_accounts(numOfAccs/2);
         log.i('accsStash', accsStash);
