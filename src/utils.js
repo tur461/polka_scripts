@@ -14,10 +14,18 @@ const isNum = v => typeof v === 'number';
 
 const format = function() { return util.format(...arguments) }
 
+const containsAnyFromArr = (s, arr) => {
+  s = s.toLowerCase();
+  for(let i=0; i<arr.length; ++i)
+    if(s.indexOf(arr[i]) > -1) return !0;
+  
+  return !1;
+}
 
 const log = (_ => {
   return {
     i: function() { console.log(...arguments) },
+    w: function() { console.warn(...arguments) },
     e: function() { console.error(...arguments) },
     t: function() { console.trace(...arguments) },
   }
@@ -55,6 +63,8 @@ const get_para_raw_spec = ctr => util.format(PATH.RAW_SPEC_PARA, get_para_id(ctr
 const make_cmd = (params, log_file) => `sh -c '${util.format(...params)} > ${log_file} 2>&1 &'`;
 
 const make_cmd_gen = (params) => `sh -c '${util.format(...params)}'`;
+
+const make_cmd_ins = (params) => `${util.format(...params)}`;
 
 const runShellCmd = cmd => {
     return new Promise((r, j) => {
@@ -98,12 +108,14 @@ module.exports = {
     runShellCmd,
     get_para_id,
     make_cmd_gen,
+    make_cmd_ins,
     get_node_key,
     get_base_path,
     get_name_para,
     get_name_relay,
     get_para_raw_spec,
     get_relay_raw_spec,
+    containsAnyFromArr,
     get_para_plain_spec,
     get_relay_plain_spec,
 }

@@ -6,7 +6,7 @@ const process_all_specs = async op => {
     const nr = op.numOfNodes_relay;
 
     await run_para_spec_code(np);
-    await run_relay_spec_code();
+    await run_relay_spec_code(nr);
 }
 
 module.exports = process_all_specs;

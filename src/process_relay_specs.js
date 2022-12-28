@@ -14,20 +14,19 @@ const {
 
 let para = null;
 let RELAY_BIN = '';
+let PHRASES_STASH = '';
+let PHRASES_CONTR = '';
 let RELAY_PLAIN_SPEC_PATH = '';
 
-const FILE_PATH = { 
-    PHRASES_CONTR: './relay_phrases_contr.txt',
-    PHRASES_STASH: './relay_phrases_stash.txt',
-}
-
-async function run_relay_spec_code() {
+async function run_relay_spec_code(n) {
     RELAY_BIN = process.env.RELAY_BIN_PATH;
+    PHRASES_STASH = process.env.RELAY_PHRASES_STASH;
+    PHRASES_CONTR = process.env.RELAY_PHRASES_CONTR;
     RELAY_PLAIN_SPEC_PATH = process.env.RELAY_PLAIN_SPEC_PATH;
 
     await generate_relay_plain_spec();
     para = jObj(fs.readFileSync(RELAY_PLAIN_SPEC_PATH));
-    await process_spec();
+    await process_spec(n);
     await generate_relay_raw_spec();
 }
 
@@ -52,39 +51,47 @@ function generate_relay_raw_spec() {
     return new Promise((r, j) => exec(cmd, (e, s, ee) => {r()}));
 }
 
-async function process_spec() {
+async function process_spec(n) {
     if(isObj(para)) {
+        log.i('processing relay specs, n:', n);
         resetFiles()
-        log.i('getting stash accounts');
         const config = para.genesis.runtime.runtime_genesis_config;
         const bals = config.balances.balances;
-        const numOfAccs = bals.length;
+        let numOfAccs = bals.length / 2;
+
+        if (numOfAccs < n) numOfAccs += (n-numOfAccs);
+        
         const bal = bals[0][1];
-        let d = await getStashAccounts(numOfAccs/2);
+
+        log.i('generating accounts, #:', numOfAccs);
+        
+        let d = await getStashAccounts(numOfAccs);
         const accsStash = d.accs;
         const stashPhrases = d.phrases;
-        d = await getControllerAccounts(numOfAccs/2);
+        d = await getControllerAccounts(numOfAccs);
         const accsController = d.accs;
         const contrPhrases = d.phrases;
-        bals.length = 0;
+
+        log.i(`Accs generated!. stash: ${accsStash.length}, controller: ${accsController.length}`);
         
+        // reset rev balanaces list
+        bals.length = 0;
+
         // insert controller accounts
-        for(let i=0; i<numOfAccs/2; ++i) {
-            bals.push([accsController[i], bal]);
-        }
+        for(let i=0; i<numOfAccs; ++i) bals.push([accsController[i], bal]);
 
         // insert stash accounts
-        for(let i=0; i<numOfAccs/2; ++i) {
-            bals.push([accsStash[i], bal]);
-        }
+        for(let i=0; i<numOfAccs; ++i) bals.push([accsStash[i], bal]);
 
         // session -> keys
 
         const sessKeys = config.session.keys;
         const sessKeysLen = sessKeys.length;
+        // reset all already set session keys
         sessKeys.length = 0;
 
-        for(let i=0; i<sessKeysLen; ++i) {
+        for(let i=0; i<n; ++i) {
+            log.i(`spec session key at i: ${i}`);
             sessKeys.push([
                 accsStash[i],
                 accsStash[i],
@@ -115,24 +122,24 @@ async function process_spec() {
 
 async function getStashAccounts(howMany) {
     let accs = [], phrases = []
-    log.i('how many:', howMany);
+    // log.i('how many:', howMany);
     for(let i=0, d={}; i<howMany; ++i) {
         d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`));
         accs.push(d.addr);
         phrases.push(d.phrase);
-        storeToFile(d.phrase, FILE_PATH.PHRASES_STASH);
+        storeToFile(d.phrase, PHRASES_STASH);
     }
     return {accs, phrases};
 }
 
 async function getControllerAccounts(howMany) {
     let accs = [], phrases = [];
-    log.i('how many:', howMany);
+    // log.i('how many:', howMany);
     for(let i=0, d={}; i<howMany; ++i) {
         d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`));
         accs.push(d.addr);
         phrases.push(d.phrase);
-        storeToFile(d.phrase, FILE_PATH.PHRASES_CONTR);
+        storeToFile(d.phrase, PHRASES_CONTR);
     }
     return {accs, phrases};
 }
@@ -162,8 +169,8 @@ function storeToFile(data, path) {
 }
 
 function resetFiles() {
-    fs.writeFileSync(FILE_PATH.PHRASES_CONTR, '')
-    fs.writeFileSync(FILE_PATH.PHRASES_STASH, '');
+    fs.writeFileSync(PHRASES_CONTR, '')
+    fs.writeFileSync(PHRASES_STASH, '');
 }
 
 function writeMutatedSpec(data, path) {

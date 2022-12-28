@@ -53,14 +53,19 @@ const KEY_TYPE = {
 
 const CMD = {
   GEN_ACC: ' key generate --network substrate',
+  GEN_WASM_STATE: '%s export-genesis-wasm --chain %s %s',
+  GEN_GENESIS_STATE: '%s export-genesis-state --chain %s %s',
   INSP_BEEF: 'key inspect --network substrate --scheme ecdsa',
   INSP_GRAN: 'key inspect --network substrate --scheme sr25519',
+  INSP_AURA: '%s key inspect --network substrate --scheme sr25519 "%s"',
   PARA_PLAIN_SPEC: '%s build-spec --disable-default-bootnode > %s',
   RAW_SPEC: '%s build-spec --chain %s --disable-default-bootnode --raw > %s',
   RELAY_PLAIN_SPEC: '%s build-spec --chain rococo-local --disable-default-bootnode > %s',
   INS_KEY: '%s key insert --base-path %s --chain %s --scheme %s --suri "%s" --key-type %s',
   RELAY: '%s --name %s --validator --base-path %s --chain %s --ws-port %s --rpc-port %s --port %s --node-key %s --unsafe-ws-external',
-  PARA: '%s --name %s --collator --force-authoring --base-path %s --chain %s --ws-port %s --rpc-port %s --port %s --node-key %s --unsafe-ws-external -- --execution wasm --chain %s --ws-port %s --port %s',
+  PING_NODE: `curl -H 'Content-Type: application/json' --data '{ "jsonrpc":"2.0", "method":"system_localPeerId", "params":[],"id":1 }' http://localhost:%s`,
+  INS_KEY_PARA: `curl -vH 'Content-Type: application/json' --data '{ "jsonrpc":"2.0", "method":"author_insertKey", "params":["aura", "%s", "%s"],"id":1 }' http://127.0.0.1:%s`,
+  PARA: '%s --name %s --collator --force-authoring --base-path %s --chain %s --ws-port %s --rpc-port %s --port %s --node-key %s --unsafe-ws-external --rpc-external --unsafe-rpc-external --rpc-cors=all --rpc-methods=Unsafe -- --execution wasm --chain %s --ws-port %s --port %s',
 }
 
 module.exports = {

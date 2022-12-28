@@ -21,6 +21,7 @@ const {
   get_relay_raw_spec,
   log,
 } = require('./utils');
+const generate_states = require('./process_states');
 
 dotenv.config({ path: 'scripts/.env'});
 
@@ -30,7 +31,7 @@ main().then();
 
 async function main() {
   const numOfNodes_para = process.env.NUM_OF_PARA_NODES;
-  console.log(numOfNodes_para, 'numOfNodes_para')
+  
   if(!numOfNodes_para) throw new Error('provide num of para nodes in env file ');
   
   const numOfNodes_relay = +process.env.NUM_OF_RELAY_NODES;
@@ -39,6 +40,7 @@ async function main() {
     numOfNodes_para, 
     numOfNodes_relay
   };
+
   // generate keys and process spec files
   await process_all_specs(p);
 
@@ -46,10 +48,13 @@ async function main() {
   if(+do_clean) {
     // start with clean environment
     await reset_logs();
+    await reset_xtras();
     await reset_base_paths();
   }
+
+  // generate parachain states for registration on relaychain
+  await generate_states(numOfNodes_para);
   
-  // lets have fun finally!!
   run_relay_nodes(numOfNodes_relay);
   run_para_nodes(numOfNodes_para);
 
@@ -120,6 +125,7 @@ function run_para_nodes(n) {
 }
 
 async function reset_logs() {
+  log.i('cleaning logs..');
   await (
     new Promise(
       (r, j) => exec(`rm ${process.env.LOG_DIR}*`, (e, s, ee) => r())
@@ -127,14 +133,29 @@ async function reset_logs() {
   );
 }
 
+async function reset_xtras() {
+  log.i('cleaning xtras..');
+  await (
+    new Promise(
+      (r, j) => exec(`rm ${process.env.XTRA_DIR}*`, (e, s, ee) => r())
+    )
+  );
+}
+
 async function reset_base_paths() {
-  await (new Promise((r, j) => exec(`rm -rf ${process.env.BASE_PATH}*`, (e, s, ee) => r())));
+  log.i('cleaning tmp..');
+  await (
+    new Promise(
+      (r, j) => exec(`rm -rf ${process.env.BASE_PATH}*`, (e, s, ee) => r())
+    )
+  );
 }
 
 async function stop_all_nodes() {
+  log.w('stopping all running nodes..');
   await (
     new Promise(
-      (r, j) => exec(`pkill -9 relay && pkill -9 para`, (e, s, ee) => r())
+      (r, j) => exec(`pkill -9 -f relay && pkill -9 -f para`, (e, s, ee) => r())
     )
   );
 }

@@ -15,10 +15,9 @@ const {
     get_para_raw_spec,
 } = require('./utils');
 
-const FILE_PATH = { 
-    PHRASES_CONTR: './para_phrases_contr.txt',
-    PHRASES_STASH: './para_phrases_stash.txt',
-}
+
+let PHRASES_CONTR = '';
+let PHRASES_STASH =  '';
 
 let PARA_BIN = '';
 let RELAY_BIN = '';
@@ -29,11 +28,13 @@ let para = null;
 async function run_para_spec_code(n) {
     PARA_BIN =  process.env.PARA_BIN_PATH;
     RELAY_BIN = process.env.RELAY_BIN_PATH;
+    PHRASES_STASH = process.env.PARA_PHRASES_STASH;
+    PHRASES_CONTR = process.env.PARA_PHRASES_CONTR;
     PARA_PLAIN_SPEC_PATH = process.env.PARA_PLAIN_SPEC_PATH;
     
     await generate_para_plain_spec();
     para = jObj(fs.readFileSync(PARA_PLAIN_SPEC_PATH));
-    await process_spec();
+    await process_spec(n);
     await generate_para_raw_specs(n);
 }
 
@@ -72,46 +73,45 @@ function upsert_para_id(para_id) {
 
 async function process_spec(n) {
     if(isObj(para)) {
-        reset_files()
-        log.i('getting stash accounts');
-
+        log.i('processing para specs, n:', n);
+        reset_files();
         const bals = para.genesis.runtime.balances.balances;
-        let numOfAccs = bals.length/2;
-        numOfAccs = numOfAccs / 2;
+        let numOfAccs = bals.length / 2;
+        
+        if (numOfAccs < n) numOfAccs += (n-numOfAccs);
+        
         const bal = bals[0][1];
-        const accsStash = await get_stash_accounts(numOfAccs/2);
-        log.i('accsStash', accsStash);
-        const accsController = await get_controller_accounts(numOfAccs/2);
-        log.i('accsController', accsController);
+        log.i('generating accounts, #:', numOfAccs);
+        const accsStash = await get_stash_accounts(numOfAccs);
+        const accsController = await get_controller_accounts(numOfAccs);
+        log.i(`Accs generated!. stash: ${accsStash.length}, controller: ${accsController.length}`);
+        // reset rev balanaces list
         bals.length = 0;
-        log.i(numOfAccs);
+       
         // insert controller accounts
-        for(let i=0; i<numOfAccs/2; ++i) {
-            bals.push([accsController[i], bal]);
-        }
+        for(let i=0; i<numOfAccs; ++i) bals.push([accsController[i], bal]);
 
         // insert stash accounts
-        for(let i=0; i<numOfAccs/2; ++i) {
-            bals.push([accsStash[i], bal]);
-        }
+        for(let i=0; i<numOfAccs; ++i) bals.push([accsStash[i], bal]);
 
         // collatorSelection -> invulnerables
 
         const invulns = para.genesis.runtime.collatorSelection.invulnerables;
         const invLen = invulns.length;
+        // reset prev list
         invulns.length = 0;
 
-        for(let i=0; i<invLen; ++i) {
-            invulns.push(accsStash[i]);
-        }
+        for(let i=0; i<invLen; ++i) invulns.push(accsStash[i]);
 
         // session -> keys
 
         const sessKeys = para.genesis.runtime.session.keys;
         const sessKeysLen = sessKeys.length;
+        // reset prev list
         sessKeys.length = 0;
 
-        for(let i=0; i<sessKeysLen; ++i) {
+        for(let i=0; i<n; ++i) {
+            log.i(`spec session key at i: ${i}`);
             sessKeys.push([
                 accsStash[i],
                 accsStash[i],
@@ -128,22 +128,22 @@ async function process_spec(n) {
 
 async function get_stash_accounts(howMany) {
     let accs = [];
-    log.i('how many:', howMany);
+    // log.i('how many:', howMany);
     for(
         let i=0, d={};
         i<howMany; 
-        storeToFile(d.phrase, FILE_PATH.PHRASES_STASH), accs.push(d.addr), ++i
+        storeToFile(d.phrase, PHRASES_STASH), accs.push(d.addr), ++i
     ) d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`))
     return accs;
 }
 
 async function get_controller_accounts(howMany) {
     let accs = []
-    log.i('how many:', howMany);
+    // log.i('how many:', howMany);
     for(
         let i=0, d={}; 
         i<howMany; 
-        storeToFile(d.phrase, FILE_PATH.PHRASES_CONTR), accs.push(d.addr), ++i
+        storeToFile(d.phrase, PHRASES_CONTR), accs.push(d.addr), ++i
     ) d = parse_op(await runShellCmd(`${RELAY_BIN} ${CMD.GEN_ACC}`))
     return accs;
 }
@@ -153,8 +153,8 @@ function storeToFile(data, path) {
 }
 
 function reset_files() {
-    fs.writeFileSync(FILE_PATH.PHRASES_CONTR, '')
-    fs.writeFileSync(FILE_PATH.PHRASES_STASH, '');
+    fs.writeFileSync(PHRASES_CONTR, '')
+    fs.writeFileSync(PHRASES_STASH, '');
 }
 
 function write_mutated_spec(data, path) {
